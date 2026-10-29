@@ -106,6 +106,13 @@ redacted / opt-in only).
 
 ## 5. Milestones
 
+> **Status (2026-10-29):** M0–M3 complete; M4 (user management) done via the
+> Oracle user store; M5 delivered as WebSocket events + op-log viewer + LSN
+> sparkline (replica view deferred — the standard server doesn't start
+> replication); M6 partial (history, export + save-to-file, tabs, theme,
+> shortcuts, max-rows). Plus extras: API Probe screen, Oracle-wire transport.
+
+
 - **M0 — Foundation (this iteration)**
   - Flutter project scaffolded (win/macos/linux), deps added, structure in place.
   - Engine: `AdminApiServer` + `--admin-port` wiring; `/health`, `/info`, `/query`.

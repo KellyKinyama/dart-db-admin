@@ -69,6 +69,10 @@ The engine prints:
 admin API on http://127.0.0.1:8088/api
 ```
 
+> **Op-log**: the Status screen's op-log viewer needs a **file-backed** database
+> (omit `--memory` and pass `--file <path>`); `enable` is a no-op in-memory.
+> Only wire-protocol writes are logged (ad-hoc `/api/query` writes are not).
+
 ## 2. Run the admin app
 
 From this repo (`dart-db-admin`):
@@ -141,6 +145,24 @@ flutter test                      # app unit tests
 
 ## Keyboard shortcuts
 
-- `Ctrl+1 … 7` — switch screens
+- `Ctrl+1 … 8` — switch screens (Connect, SQL, Schema, Vector, API Probe,
+  Events, Status, Users)
 - `Ctrl+Enter` — run SQL (SQL console)
 - `Ctrl+D` — cycle theme (system → light → dark)
+
+## Screens
+
+| Screen | Needs | What it does |
+|--------|-------|--------------|
+| **Connect** | — | Manage connections (Admin API or Oracle wire); multiple open at once |
+| **SQL** | either | Run SQL/PLSQL; history, CSV/JSON export, max-rows cap, destructive-SQL confirm |
+| **Schema** | Admin API | Browse tables/views + column detail |
+| **Vector** | Admin API | List vector indexes; k-NN / filtered / range / hybrid search |
+| **API Probe** | Admin API | Discover and fire raw admin-API requests |
+| **Events** | Admin API | Live WebSocket event stream (heartbeat + requests) |
+| **Status** | Admin API | Metric dashboard, auto-refresh, LSN sparkline, op-log viewer |
+| **Users** | Admin API + `--oracle-port` | List and add Oracle users |
+
+> Oracle-wire connections drive the **SQL** screen; the admin-only screens show
+> a notice (they need an Admin API connection for engine metadata).
+
