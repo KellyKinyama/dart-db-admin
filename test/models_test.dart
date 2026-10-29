@@ -93,6 +93,22 @@ void main() {
       expect(r.isError, isTrue);
       expect(r.error, 'boom');
     });
+
+    test('parses truncation markers', () {
+      final r = QueryResult.fromJson({
+        'columns': ['x'],
+        'rows': [
+          [1],
+          [2],
+        ],
+        'affected': 5,
+        'truncated': true,
+        'totalRows': 5,
+      });
+      expect(r.truncated, isTrue);
+      expect(r.totalRows, 5);
+      expect(r.rows.length, 2);
+    });
   });
 
   group('QueryResponse', () {

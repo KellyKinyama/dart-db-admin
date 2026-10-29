@@ -70,8 +70,12 @@ class ResultsGrid extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.only(top: 4),
           child: Text(
-            '${result.rows.length} row(s)',
-            style: theme.textTheme.bodySmall,
+            result.truncated
+                ? '${result.rows.length} of ${result.totalRows} row(s) — truncated'
+                : '${result.rows.length} row(s)',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: result.truncated ? Colors.orange : null,
+            ),
           ),
         ),
       ],

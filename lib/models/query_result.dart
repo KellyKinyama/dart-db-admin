@@ -7,6 +7,8 @@ class QueryResult {
     required this.affected,
     this.message,
     this.error,
+    this.truncated = false,
+    this.totalRows,
   });
 
   final List<String> columns;
@@ -15,6 +17,10 @@ class QueryResult {
   final int affected;
   final String? message;
   final String? error;
+
+  /// True when the server capped the returned rows (see [totalRows]).
+  final bool truncated;
+  final int? totalRows;
 
   bool get isError => error != null;
 
@@ -31,6 +37,8 @@ class QueryResult {
       affected: (json['affected'] as num?)?.toInt() ?? 0,
       message: json['message'] as String?,
       error: json['error'] as String?,
+      truncated: json['truncated'] == true,
+      totalRows: (json['totalRows'] as num?)?.toInt(),
     );
   }
 }

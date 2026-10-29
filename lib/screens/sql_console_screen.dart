@@ -25,6 +25,7 @@ class _SqlConsoleScreenState extends State<SqlConsoleScreen> {
     text: 'SELECT 1 AS answer;',
   );
   final _focus = FocusNode();
+  final _maxRows = TextEditingController(text: '1000');
 
   bool _running = false;
   QueryResponse? _response;
@@ -50,6 +51,7 @@ class _SqlConsoleScreenState extends State<SqlConsoleScreen> {
   void dispose() {
     _controller.dispose();
     _focus.dispose();
+    _maxRows.dispose();
     super.dispose();
   }
 
@@ -77,7 +79,7 @@ class _SqlConsoleScreenState extends State<SqlConsoleScreen> {
     });
 
     try {
-      final resp = await state.runQuery(sql);
+      final resp = await state.runQuery(sql, maxRows: int.tryParse(_maxRows.text.trim()));
       if (!mounted) return;
       setState(() {
         _response = resp;
@@ -193,6 +195,16 @@ class _SqlConsoleScreenState extends State<SqlConsoleScreen> {
                   padding: const EdgeInsets.only(right: 12),
                   child: Text('${_response!.elapsedMs} ms'),
                 ),
+              SizedBox(
+                width: 96,
+                child: TextField(
+                  controller: _maxRows,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                      labelText: 'Max rows', isDense: true),
+                ),
+              ),
+              const SizedBox(width: 8),
               IconButton(
                 tooltip: 'Query history',
                 icon: const Icon(Icons.history),
