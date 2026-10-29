@@ -24,6 +24,7 @@ class _StatusScreenState extends State<StatusScreen> {
   Map<String, Object?> _metrics = const {};
   Map<String, Object?> _stats = const {};
   Map<String, Object?> _sessions = const {};
+  final List<double> _lsnHistory = [];
 
   @override
   void initState() {
@@ -68,6 +69,9 @@ class _StatusScreenState extends State<StatusScreen> {
         _metrics = results[1];
         _stats = results[2];
         _sessions = results[3];
+        final lsn = (_status['log_last_lsn'] as num?)?.toDouble() ?? 0;
+        _lsnHistory.add(lsn);
+        if (_lsnHistory.length > 60) _lsnHistory.removeAt(0);
         _loading = false;
       });
     } catch (e) {
@@ -119,6 +123,8 @@ class _StatusScreenState extends State<StatusScreen> {
             child: ListView(
               children: [
                 _tiles(context),
+                const SizedBox(height: 16),
+                _LsnChart(samples: _lsnHistory),
                 const SizedBox(height: 16),
                 _Section(title: 'HA status', body: encoder.convert(_status)),
                 const SizedBox(height: 12),
@@ -223,4 +229,82 @@ class _Section extends StatelessWidget {
       ],
     );
   }
+}
+
+/// A compact line chart of recent `log_last_lsn` samples.
+class _LsnChart extends StatelessWidget {
+  const _LsnChart({required this.samples});
+
+  final List<double> samples;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final last = samples.isEmpty ? 0.0 : samples.last;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text('Log LSN trend', style: theme.textTheme.labelLarge),
+            const Spacer(),
+            Text('current: ${last.toInt()}', style: theme.textTheme.bodySmall),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Container(
+          height: 80,
+          width: double.infinity,
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: samples.length < 2
+              ? Center(
+                  child: Text('Collecting samples…  (enable auto-refresh)',
+                      style: theme.textTheme.bodySmall),
+                )
+              : CustomPaint(
+                  painter: _SparklinePainter(
+                    samples: samples,
+                    color: theme.colorScheme.primary,
+                  ),
+                  size: Size.infinite,
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SparklinePainter extends CustomPainter {
+  _SparklinePainter({required this.samples, required this.color});
+
+  final List<double> samples;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final minV = samples.reduce((a, b) => a < b ? a : b);
+    final maxV = samples.reduce((a, b) => a > b ? a : b);
+    final range = (maxV - minV).abs() < 1e-9 ? 1.0 : maxV - minV;
+    final dx = size.width / (samples.length - 1);
+    final path = Path();
+    for (var i = 0; i < samples.length; i++) {
+      final x = dx * i;
+      final y = size.height - ((samples[i] - minV) / range) * size.height;
+      i == 0 ? path.moveTo(x, y) : path.lineTo(x, y);
+    }
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = color
+        ..strokeWidth = 2
+        ..style = PaintingStyle.stroke,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_SparklinePainter old) => old.samples != samples;
 }

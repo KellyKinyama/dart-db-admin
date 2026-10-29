@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/connection.dart';
@@ -23,9 +23,13 @@ class ConnectionSession {
 /// one of which is active (drives the screens).
 class AppState extends ChangeNotifier {
   static const _prefsKey = 'dart_db_admin.connections';
+  static const _themeKey = 'dart_db_admin.themeMode';
 
   final List<ServerConnection> _connections = [];
   List<ServerConnection> get connections => List.unmodifiable(_connections);
+
+  ThemeMode _themeMode = ThemeMode.system;
+  ThemeMode get themeMode => _themeMode;
 
   final List<ConnectionSession> _sessions = [];
   List<ConnectionSession> get sessions => List.unmodifiable(_sessions);
@@ -58,8 +62,23 @@ class AppState extends ChangeNotifier {
       _connections
         ..clear()
         ..addAll(ServerConnection.decodeList(raw));
-      notifyListeners();
     }
+    final theme = prefs.getString(_themeKey);
+    _themeMode = ThemeMode.values.asNameMap()[theme] ?? ThemeMode.system;
+    notifyListeners();
+  }
+
+  Future<void> setThemeMode(ThemeMode mode) async {
+    _themeMode = mode;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_themeKey, mode.name);
+  }
+
+  /// Cycles system → light → dark → system.
+  void cycleTheme() {
+    const order = [ThemeMode.system, ThemeMode.light, ThemeMode.dark];
+    setThemeMode(order[(order.indexOf(_themeMode) + 1) % order.length]);
   }
 
   Future<void> _persist() async {

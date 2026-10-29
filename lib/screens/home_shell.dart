@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../state/app_state.dart';
@@ -20,6 +21,16 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
+
+  static const _digitKeys = [
+    LogicalKeyboardKey.digit1,
+    LogicalKeyboardKey.digit2,
+    LogicalKeyboardKey.digit3,
+    LogicalKeyboardKey.digit4,
+    LogicalKeyboardKey.digit5,
+    LogicalKeyboardKey.digit6,
+    LogicalKeyboardKey.digit7,
+  ];
 
   static const _destinations = [
     (icon: Icons.cable, label: 'Connect'),
@@ -46,44 +57,73 @@ class _HomeShellState extends State<HomeShell> {
       _ => const SizedBox.shrink(),
     };
 
-    return Scaffold(
-      body: Row(
-        children: [
-          NavigationRail(
-            selectedIndex: _index,
-            onDestinationSelected: (i) => setState(() => _index = i),
-            labelType: NavigationRailLabelType.all,
-            leading: const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              child: Icon(Icons.dns, size: 28),
-            ),
-            destinations: [
-              for (final d in _destinations)
-                NavigationRailDestination(
-                  icon: Icon(d.icon),
-                  label: Text(d.label),
+    return CallbackShortcuts(
+      bindings: {
+        for (var i = 0; i < _destinations.length; i++)
+          SingleActivator(_digitKeys[i], control: true):
+              () => setState(() => _index = i),
+        const SingleActivator(LogicalKeyboardKey.keyD, control: true):
+            state.cycleTheme,
+      },
+      child: Focus(
+        autofocus: true,
+        child: Scaffold(
+          body: Row(
+            children: [
+              NavigationRail(
+                selectedIndex: _index,
+                onDestinationSelected: (i) => setState(() => _index = i),
+                labelType: NavigationRailLabelType.all,
+                leading: const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Icon(Icons.dns, size: 28),
                 ),
-            ],
-          ),
-          const VerticalDivider(width: 1),
-          Expanded(
-            child: Column(
-              children: [
-                _ConnectionTabs(state: state),
-                const Divider(height: 1),
-                // Re-create the screen when the active session changes so it
-                // re-fetches against the newly selected connection.
-                Expanded(
-                  child: KeyedSubtree(
-                    key: ValueKey(state.activeSessionId ?? 'none'),
-                    child: body,
+                trailing: Expanded(
+                  child: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: IconButton(
+                        tooltip: 'Theme (Ctrl+D): ${state.themeMode.name}',
+                        icon: Icon(switch (state.themeMode) {
+                          ThemeMode.light => Icons.light_mode,
+                          ThemeMode.dark => Icons.dark_mode,
+                          ThemeMode.system => Icons.brightness_auto,
+                        }),
+                        onPressed: state.cycleTheme,
+                      ),
+                    ),
                   ),
+                ),
+                destinations: [
+                  for (final d in _destinations)
+                    NavigationRailDestination(
+                      icon: Icon(d.icon),
+                      label: Text(d.label),
+                    ),
+                ],
+              ),
+              const VerticalDivider(width: 1),
+              Expanded(
+                child: Column(
+                  children: [
+                    _ConnectionTabs(state: state),
+                    const Divider(height: 1),
+                    // Re-create the screen when the active session changes so it
+                    // re-fetches against the newly selected connection.
+                    Expanded(
+                      child: KeyedSubtree(
+                        key: ValueKey(state.activeSessionId ?? 'none'),
+                        child: body,
+                      ),
                 ),
               ],
             ),
           ),
         ],
       ),
+          ),
+        ),
     );
   }
 }

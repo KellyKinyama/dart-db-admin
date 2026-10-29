@@ -15,20 +15,23 @@ class DartDbAdminApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) => AppState()..load(),
-      child: MaterialApp(
-        title: 'dart-db Admin',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          colorSchemeSeed: const Color(0xFF2962FF),
-          useMaterial3: true,
-          brightness: Brightness.light,
+      child: Consumer<AppState>(
+        builder: (context, state, _) => MaterialApp(
+          title: 'dart-db Admin',
+          debugShowCheckedModeBanner: false,
+          themeMode: state.themeMode,
+          theme: ThemeData(
+            colorSchemeSeed: const Color(0xFF2962FF),
+            useMaterial3: true,
+            brightness: Brightness.light,
+          ),
+          darkTheme: ThemeData(
+            colorSchemeSeed: const Color(0xFF2962FF),
+            useMaterial3: true,
+            brightness: Brightness.dark,
+          ),
+          home: const HomeShell(),
         ),
-        darkTheme: ThemeData(
-          colorSchemeSeed: const Color(0xFF2962FF),
-          useMaterial3: true,
-          brightness: Brightness.dark,
-        ),
-        home: const HomeShell(),
       ),
     );
   }
