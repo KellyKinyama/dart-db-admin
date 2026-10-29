@@ -120,4 +120,82 @@ void main() {
       );
     });
   });
+
+  group('buildVectorQuery modes', () {
+    test('knn', () {
+      expect(
+        buildVectorQuery(
+            mode: VecSearchMode.knn,
+            table: 'docs',
+            column: 'e',
+            vector: '[1,0]',
+            k: 3),
+        "SELECT rowid, distance FROM vec_search('docs', 'e', VEC('[1,0]'), 3) "
+        'ORDER BY distance',
+      );
+    });
+
+    test('filtered embeds filter JSON and escapes quotes', () {
+      final sql = buildVectorQuery(
+        mode: VecSearchMode.filtered,
+        table: 'docs',
+        column: 'e',
+        vector: '[1,0]',
+        k: 5,
+        filterJson: '{"tenant": 2}',
+      );
+      expect(sql, contains('vec_search_filtered('));
+      expect(sql, contains('\'{"tenant": 2}\''));
+    });
+
+    test('filtered requires filter JSON', () {
+      expect(
+        () => buildVectorQuery(
+            mode: VecSearchMode.filtered,
+            table: 'd',
+            column: 'e',
+            vector: '[1]'),
+        throwsArgumentError,
+      );
+    });
+
+    test('range uses radius', () {
+      final sql = buildVectorQuery(
+        mode: VecSearchMode.range,
+        table: 'docs',
+        column: 'e',
+        vector: '[1,0]',
+        radius: 2.5,
+      );
+      expect(sql,
+          "SELECT rowid, distance FROM vec_range_search('docs', 'e', VEC('[1,0]'), 2.5) ORDER BY distance");
+    });
+
+    test('hybrid needs text column + query, escapes quotes', () {
+      final sql = buildVectorQuery(
+        mode: VecSearchMode.hybrid,
+        table: 'docs',
+        column: 'e',
+        vector: '[1,0]',
+        k: 3,
+        textColumn: 'body',
+        queryText: "o'brien",
+      );
+      expect(sql, contains('vec_hybrid_search('));
+      expect(sql, contains("'o''brien'"));
+      expect(sql, contains('rrf_score'));
+    });
+
+    test('hybrid rejects missing text column', () {
+      expect(
+        () => buildVectorQuery(
+            mode: VecSearchMode.hybrid,
+            table: 'd',
+            column: 'e',
+            vector: '[1]',
+            queryText: 'q'),
+        throwsArgumentError,
+      );
+    });
+  });
 }

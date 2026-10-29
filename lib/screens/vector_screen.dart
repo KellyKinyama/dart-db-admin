@@ -6,7 +6,8 @@ import '../services/sql_tools.dart';
 import '../state/app_state.dart';
 import '../widgets/results_grid.dart';
 
-/// Vector manager: list registered vector indexes and run k-NN searches.
+/// Vector manager: list registered vector indexes and run k-NN / filtered /
+/// range / hybrid searches against the engine's vector store.
 class VectorScreen extends StatefulWidget {
   const VectorScreen({super.key});
 
@@ -19,10 +20,15 @@ class _VectorScreenState extends State<VectorScreen> {
   String? _error;
   QueryResult? _indexes;
 
+  VecSearchMode _mode = VecSearchMode.knn;
   final _table = TextEditingController();
   final _column = TextEditingController();
   final _vector = TextEditingController(text: '[0.1, 0.2]');
   final _k = TextEditingController(text: '10');
+  final _radius = TextEditingController(text: '1.0');
+  final _filter = TextEditingController(text: '{"tenant": 1}');
+  final _textColumn = TextEditingController();
+  final _queryText = TextEditingController();
 
   bool _searching = false;
   String? _searchError;
@@ -36,10 +42,11 @@ class _VectorScreenState extends State<VectorScreen> {
 
   @override
   void dispose() {
-    _table.dispose();
-    _column.dispose();
-    _vector.dispose();
-    _k.dispose();
+    for (final c in [
+      _table, _column, _vector, _k, _radius, _filter, _textColumn, _queryText,
+    ]) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -81,11 +88,16 @@ class _VectorScreenState extends State<VectorScreen> {
     if (client == null) return;
     final String sql;
     try {
-      sql = buildVecSearchSql(
+      sql = buildVectorQuery(
+        mode: _mode,
         table: _table.text.trim(),
         column: _column.text.trim(),
         vector: _vector.text.trim(),
         k: int.tryParse(_k.text.trim()) ?? 10,
+        radius: double.tryParse(_radius.text.trim()) ?? 1.0,
+        filterJson: _filter.text,
+        textColumn: _textColumn.text.trim(),
+        queryText: _queryText.text,
       );
     } on ArgumentError catch (e) {
       setState(() => _searchError = e.message.toString());
@@ -133,11 +145,8 @@ class _VectorScreenState extends State<VectorScreen> {
           const Divider(),
           Text('Indexes', style: Theme.of(context).textTheme.labelLarge),
           const SizedBox(height: 4),
-          SizedBox(height: 180, child: _indexList(context)),
+          SizedBox(height: 150, child: _indexList(context)),
           const SizedBox(height: 12),
-          Text('Similarity search',
-              style: Theme.of(context).textTheme.labelLarge),
-          const SizedBox(height: 8),
           _searchForm(context),
           const SizedBox(height: 8),
           const Divider(),
@@ -161,39 +170,49 @@ class _VectorScreenState extends State<VectorScreen> {
     }
     final tblCol = idx.columns.indexOf('tbl');
     final colCol = idx.columns.indexOf('col');
-    return Stack(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ResultsGrid(result: idx),
         if (tblCol >= 0 && colCol >= 0)
-          Positioned(
-            right: 0,
-            top: 0,
-            child: Wrap(
-              spacing: 6,
-              children: [
-                for (final row in idx.rows)
-                  ActionChip(
-                    label: Text('${row[tblCol]}.${row[colCol]}'),
-                    onPressed: () =>
-                        _useIndex('${row[tblCol]}', '${row[colCol]}'),
-                  ),
-              ],
-            ),
+          Wrap(
+            spacing: 6,
+            children: [
+              for (final row in idx.rows)
+                ActionChip(
+                  avatar: const Icon(Icons.scatter_plot, size: 16),
+                  label: Text('${row[tblCol]}.${row[colCol]}'),
+                  onPressed: () => _useIndex('${row[tblCol]}', '${row[colCol]}'),
+                ),
+            ],
           ),
+        const SizedBox(height: 6),
+        Expanded(child: ResultsGrid(result: idx)),
       ],
     );
   }
 
   Widget _searchForm(BuildContext context) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        SegmentedButton<VecSearchMode>(
+          segments: const [
+            ButtonSegment(value: VecSearchMode.knn, label: Text('k-NN')),
+            ButtonSegment(value: VecSearchMode.filtered, label: Text('Filtered')),
+            ButtonSegment(value: VecSearchMode.range, label: Text('Range')),
+            ButtonSegment(value: VecSearchMode.hybrid, label: Text('Hybrid')),
+          ],
+          selected: {_mode},
+          onSelectionChanged: (s) => setState(() => _mode = s.first),
+        ),
+        const SizedBox(height: 10),
         Row(
           children: [
             Expanded(
               child: TextField(
                 controller: _table,
-                decoration: const InputDecoration(
-                    labelText: 'Table', isDense: true),
+                decoration:
+                    const InputDecoration(labelText: 'Table', isDense: true),
               ),
             ),
             const SizedBox(width: 8),
@@ -201,21 +220,62 @@ class _VectorScreenState extends State<VectorScreen> {
               child: TextField(
                 controller: _column,
                 decoration: const InputDecoration(
-                    labelText: 'Column', isDense: true),
+                    labelText: 'Vector column', isDense: true),
               ),
             ),
             const SizedBox(width: 8),
-            SizedBox(
-              width: 80,
-              child: TextField(
-                controller: _k,
-                keyboardType: TextInputType.number,
-                decoration:
-                    const InputDecoration(labelText: 'k', isDense: true),
+            if (_mode == VecSearchMode.range)
+              SizedBox(
+                width: 90,
+                child: TextField(
+                  controller: _radius,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                      labelText: 'radius', isDense: true),
+                ),
+              )
+            else
+              SizedBox(
+                width: 80,
+                child: TextField(
+                  controller: _k,
+                  keyboardType: TextInputType.number,
+                  decoration:
+                      const InputDecoration(labelText: 'k', isDense: true),
+                ),
               ),
-            ),
           ],
         ),
+        const SizedBox(height: 8),
+        if (_mode == VecSearchMode.filtered)
+          TextField(
+            controller: _filter,
+            decoration: const InputDecoration(
+              labelText: 'Filter JSON  e.g. {"tenant": 1}',
+              isDense: true,
+            ),
+            style: const TextStyle(fontFamily: 'monospace'),
+          ),
+        if (_mode == VecSearchMode.hybrid)
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _textColumn,
+                  decoration: const InputDecoration(
+                      labelText: 'Text column', isDense: true),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  controller: _queryText,
+                  decoration: const InputDecoration(
+                      labelText: 'Query text', isDense: true),
+                ),
+              ),
+            ],
+          ),
         const SizedBox(height: 8),
         Row(
           children: [

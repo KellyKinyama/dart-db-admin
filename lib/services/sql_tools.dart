@@ -70,3 +70,53 @@ String buildVecSearchSql({
   return "SELECT rowid, distance FROM vec_search('$table', '$column', "
       "VEC('$v'), $k) ORDER BY distance";
 }
+
+/// The vector search modes the engine exposes as table-valued functions.
+enum VecSearchMode { knn, filtered, range, hybrid }
+
+String _sq(String s) => s.replaceAll("'", "''");
+
+/// Builds a vector search query for the chosen [mode], grounded in the engine
+/// TVF signatures. Throws [ArgumentError] on invalid input.
+String buildVectorQuery({
+  required VecSearchMode mode,
+  required String table,
+  required String column,
+  required String vector,
+  int k = 10,
+  double radius = 1.0,
+  String filterJson = '',
+  String textColumn = '',
+  String queryText = '',
+}) {
+  if (!isIdentifier(table)) throw ArgumentError('invalid table: $table');
+  if (!isIdentifier(column)) throw ArgumentError('invalid column: $column');
+  if (!isVectorLiteral(vector)) throw ArgumentError('invalid vector: $vector');
+  final v = vector.trim();
+  switch (mode) {
+    case VecSearchMode.knn:
+      if (k < 1) throw ArgumentError('k must be >= 1');
+      return "SELECT rowid, distance FROM vec_search('$table', '$column', "
+          "VEC('$v'), $k) ORDER BY distance";
+    case VecSearchMode.filtered:
+      if (k < 1) throw ArgumentError('k must be >= 1');
+      if (filterJson.trim().isEmpty) {
+        throw ArgumentError('filter JSON required');
+      }
+      return "SELECT rowid, distance FROM vec_search_filtered('$table', "
+          "'$column', VEC('$v'), $k, '${_sq(filterJson.trim())}') "
+          "ORDER BY distance";
+    case VecSearchMode.range:
+      return "SELECT rowid, distance FROM vec_range_search('$table', "
+          "'$column', VEC('$v'), $radius) ORDER BY distance";
+    case VecSearchMode.hybrid:
+      if (k < 1) throw ArgumentError('k must be >= 1');
+      if (!isIdentifier(textColumn)) {
+        throw ArgumentError('invalid text column: $textColumn');
+      }
+      if (queryText.trim().isEmpty) throw ArgumentError('query text required');
+      return "SELECT rowid, rrf_score FROM vec_hybrid_search('$table', "
+          "'$column', '$textColumn', VEC('$v'), '${_sq(queryText.trim())}', $k) "
+          "ORDER BY rrf_score DESC";
+  }
+}
