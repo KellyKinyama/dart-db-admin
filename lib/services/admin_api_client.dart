@@ -79,9 +79,25 @@ class AdminApiClient {
   /// GET /api/sessions — active connection counts.
   Future<Map<String, Object?>> sessions() => _get('/sessions');
 
+  /// GET /api/oplog — recent op-log records.
+  Future<Map<String, Object?>> oplog({int limit = 100}) =>
+      _get('/oplog?limit=$limit');
+
+  /// POST /api/oplog/enable — turn on the op-log (file-backed DBs only).
+  Future<Map<String, Object?>> enableOplog() async {
+    final http.Response res;
+    try {
+      res = await _http
+          .post(_uri('/oplog/enable'), headers: _headers)
+          .timeout(const Duration(seconds: 15));
+    } catch (e) {
+      throw AdminApiException('Enable op-log failed: $e');
+    }
+    return _decode(res);
+  }
+
   /// GET /api/oracle — Oracle wire status.
   Future<Map<String, Object?>> oracleStatus() => _get('/oracle');
-
   /// GET /api/oracle/users — list Oracle users.
   Future<List<String>> oracleUsers() async {
     final json = await _get('/oracle/users');

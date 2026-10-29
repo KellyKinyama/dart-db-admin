@@ -24,6 +24,7 @@ class _StatusScreenState extends State<StatusScreen> {
   Map<String, Object?> _metrics = const {};
   Map<String, Object?> _stats = const {};
   Map<String, Object?> _sessions = const {};
+  Map<String, Object?> _oplog = const {};
   final List<double> _lsnHistory = [];
 
   @override
@@ -62,6 +63,7 @@ class _StatusScreenState extends State<StatusScreen> {
         client.metrics(),
         client.stats(),
         client.sessions(),
+        client.oplog(limit: 50),
       ]);
       if (!mounted) return;
       setState(() {
@@ -69,6 +71,7 @@ class _StatusScreenState extends State<StatusScreen> {
         _metrics = results[1];
         _stats = results[2];
         _sessions = results[3];
+        _oplog = results[4];
         final lsn = (_status['log_last_lsn'] as num?)?.toDouble() ?? 0;
         _lsnHistory.add(lsn);
         if (_lsnHistory.length > 60) _lsnHistory.removeAt(0);
@@ -80,6 +83,17 @@ class _StatusScreenState extends State<StatusScreen> {
         _error = e.toString();
         _loading = false;
       });
+    }
+  }
+
+  Future<void> _enableOplog() async {
+    final client = context.read<AppState>().client;
+    if (client == null) return;
+    try {
+      await client.enableOplog();
+      await _refresh();
+    } catch (e) {
+      if (mounted) setState(() => _error = e.toString());
     }
   }
 
@@ -126,6 +140,8 @@ class _StatusScreenState extends State<StatusScreen> {
                 const SizedBox(height: 16),
                 _LsnChart(samples: _lsnHistory),
                 const SizedBox(height: 16),
+                _oplogSection(context),
+                const SizedBox(height: 16),
                 _Section(title: 'HA status', body: encoder.convert(_status)),
                 const SizedBox(height: 12),
                 _Section(title: 'Engine info', body: encoder.convert(info)),
@@ -136,6 +152,54 @@ class _StatusScreenState extends State<StatusScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _oplogSection(BuildContext context) {
+    final theme = Theme.of(context);
+    final enabled = _oplog['enabled'] == true;
+    final records = (_oplog['records'] as List?) ?? const [];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text('Op-log', style: theme.textTheme.labelLarge),
+            const SizedBox(width: 8),
+            if (enabled)
+              Text('lastLsn ${_oplog['lastLsn'] ?? 0}',
+                  style: theme.textTheme.bodySmall),
+            const Spacer(),
+            if (!enabled)
+              TextButton.icon(
+                onPressed: _enableOplog,
+                icon: const Icon(Icons.play_circle_outline, size: 18),
+                label: const Text('Enable op-log'),
+              ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Container(
+          width: double.infinity,
+          constraints: const BoxConstraints(maxHeight: 200),
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: !enabled
+              ? const Text('Op-log is off (file-backed databases only).')
+              : records.isEmpty
+                  ? const Text('No records yet.')
+                  : ListView(
+                      children: [
+                        for (final rec in records.reversed)
+                          _OplogRow(
+                              record: (rec as Map).cast<String, Object?>()),
+                      ],
+                    ),
+        ),
+      ],
     );
   }
 
@@ -307,4 +371,38 @@ class _SparklinePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_SparklinePainter old) => old.samples != samples;
+}
+
+class _OplogRow extends StatelessWidget {
+  const _OplogRow({required this.record});
+
+  final Map<String, Object?> record;
+
+  @override
+  Widget build(BuildContext context) {
+    final ops = (record['ops'] as List?)?.cast<Object?>() ?? const [];
+    final opText = ops.map((o) => '$o').join('; ');
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 48,
+            child: Text('#${record['lsn']}',
+                style: const TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold)),
+          ),
+          Expanded(
+            child: Text(opText,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontFamily: 'monospace', fontSize: 12)),
+          ),
+        ],
+      ),
+    );
+  }
 }
