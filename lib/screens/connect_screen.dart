@@ -81,7 +81,7 @@ class ConnectScreen extends StatelessWidget {
                                 )
                               else
                                 FilledButton.tonal(
-                                  onPressed: () => state.connect(conn),
+                                  onPressed: () => _connect(context, conn),
                                   child: const Text('Connect'),
                                 ),
                               IconButton(
@@ -113,6 +113,48 @@ class ConnectScreen extends StatelessWidget {
     if (result != null && context.mounted) {
       await context.read<AppState>().saveConnection(result);
     }
+  }
+
+  /// Connects [conn], prompting for the Oracle password when it isn't held.
+  Future<void> _connect(BuildContext context, ServerConnection conn) async {
+    final state = context.read<AppState>();
+    var target = conn;
+    if (conn.isOracle && (conn.password == null || conn.password!.isEmpty)) {
+      final pwd = await _promptPassword(context, conn);
+      if (pwd == null) return;
+      target = conn.copyWith(password: pwd);
+    }
+    await state.connect(target);
+  }
+
+  Future<String?> _promptPassword(
+      BuildContext context, ServerConnection conn) async {
+    final controller = TextEditingController();
+    final pwd = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Password for ${conn.user}@${conn.oracleConnectString}'),
+        content: TextField(
+          controller: controller,
+          obscureText: true,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: 'Oracle password'),
+          onSubmitted: (v) => Navigator.of(context).pop(v),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(controller.text),
+            child: const Text('Connect'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    return pwd;
   }
 }
 

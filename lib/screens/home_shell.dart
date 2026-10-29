@@ -9,6 +9,7 @@ import 'events_screen.dart';
 import 'schema_screen.dart';
 import 'sql_console_screen.dart';
 import 'status_screen.dart';
+import 'users_screen.dart';
 import 'vector_screen.dart';
 
 /// Top-level shell with a NavigationRail and a connection badge.
@@ -30,6 +31,7 @@ class _HomeShellState extends State<HomeShell> {
     LogicalKeyboardKey.digit5,
     LogicalKeyboardKey.digit6,
     LogicalKeyboardKey.digit7,
+    LogicalKeyboardKey.digit8,
   ];
 
   static const _destinations = [
@@ -40,6 +42,7 @@ class _HomeShellState extends State<HomeShell> {
     (icon: Icons.api, label: 'API Probe'),
     (icon: Icons.bolt, label: 'Events'),
     (icon: Icons.monitor_heart, label: 'Status'),
+    (icon: Icons.people_outline, label: 'Users'),
   ];
 
   @override
@@ -54,6 +57,7 @@ class _HomeShellState extends State<HomeShell> {
       4 => const ApiProbeScreen(),
       5 => const EventsScreen(),
       6 => const StatusScreen(),
+      7 => const UsersScreen(),
       _ => const SizedBox.shrink(),
     };
 

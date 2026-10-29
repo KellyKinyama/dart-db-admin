@@ -1,3 +1,4 @@
+// ignore_for_file: avoid_print
 import 'package:dart_db_admin/models/connection.dart';
 import 'package:dart_db_admin/services/oracle_client.dart';
 

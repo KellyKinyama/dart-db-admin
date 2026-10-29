@@ -79,6 +79,43 @@ class AdminApiClient {
   /// GET /api/sessions — active connection counts.
   Future<Map<String, Object?>> sessions() => _get('/sessions');
 
+  /// GET /api/oracle — Oracle wire status.
+  Future<Map<String, Object?>> oracleStatus() => _get('/oracle');
+
+  /// GET /api/oracle/users — list Oracle users.
+  Future<List<String>> oracleUsers() async {
+    final json = await _get('/oracle/users');
+    final raw = (json['users'] as List?)?.cast<Object?>() ?? const [];
+    return raw.map((u) => u?.toString() ?? '').toList();
+  }
+
+  /// POST /api/oracle/users — add an Oracle user; returns the updated list.
+  Future<List<String>> addOracleUser(
+    String username,
+    String password, {
+    bool pbkdf2 = true,
+  }) async {
+    final http.Response res;
+    try {
+      res = await _http
+          .post(
+            _uri('/oracle/users'),
+            headers: _headers,
+            body: jsonEncode({
+              'username': username,
+              'password': password,
+              'pbkdf2': pbkdf2,
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
+    } catch (e) {
+      throw AdminApiException('Add user failed: $e');
+    }
+    final json = _decode(res);
+    final raw = (json['users'] as List?)?.cast<Object?>() ?? const [];
+    return raw.map((u) => u?.toString() ?? '').toList();
+  }
+
   /// GET /api/tables — list of table names.
   Future<List<String>> tables() async {
     final json = await _get('/tables');
