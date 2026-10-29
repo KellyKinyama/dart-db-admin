@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 import '../models/query_result.dart';
 import '../services/admin_api_client.dart';
+import '../services/history_store.dart';
 import '../services/sql_tools.dart';
 import '../state/app_state.dart';
 import '../widgets/results_grid.dart';
@@ -28,7 +29,22 @@ class _SqlConsoleScreenState extends State<SqlConsoleScreen> {
   bool _running = false;
   QueryResponse? _response;
   String? _error;
-  final List<String> _history = [];
+  final _historyStore = QueryHistoryStore();
+  List<String> _history = [];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadHistory());
+  }
+
+  Future<void> _loadHistory() async {
+    final conn = context.read<AppState>().active;
+    if (conn == null) return;
+    final history = await _historyStore.load(conn.name);
+    if (!mounted) return;
+    setState(() => _history = history);
+  }
 
   @override
   void dispose() {
@@ -38,7 +54,8 @@ class _SqlConsoleScreenState extends State<SqlConsoleScreen> {
   }
 
   Future<void> _run() async {
-    final client = context.read<AppState>().client;
+    final state = context.read<AppState>();
+    final client = state.client;
     if (client == null) {
       setState(() => _error = 'Not connected. Open the Connect tab first.');
       return;
@@ -49,9 +66,11 @@ class _SqlConsoleScreenState extends State<SqlConsoleScreen> {
     if (isDestructiveSql(sql) && !await _confirmDestructive(sql)) return;
     if (!mounted) return;
 
-    _history.remove(sql);
-    _history.insert(0, sql);
-    if (_history.length > 50) _history.removeLast();
+    final conn = state.active;
+    if (conn != null) {
+      final updated = await _historyStore.add(conn.name, sql);
+      if (mounted) setState(() => _history = updated);
+    }
 
     setState(() {
       _running = true;

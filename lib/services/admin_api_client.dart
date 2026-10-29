@@ -113,7 +113,7 @@ class AdminApiClient {
             headers: _headers,
             body: jsonEncode({
               'sql': sql,
-              if (maxRows != null) 'maxRows': maxRows,
+              'maxRows': ?maxRows,
             }),
           )
           .timeout(const Duration(seconds: 60));

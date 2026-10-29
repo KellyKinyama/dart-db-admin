@@ -68,7 +68,14 @@ class _HomeShellState extends State<HomeShell> {
               children: [
                 _ConnectionTabs(state: state),
                 const Divider(height: 1),
-                Expanded(child: body),
+                // Re-create the screen when the active session changes so it
+                // re-fetches against the newly selected connection.
+                Expanded(
+                  child: KeyedSubtree(
+                    key: ValueKey(state.activeSessionId ?? 'none'),
+                    child: body,
+                  ),
+                ),
               ],
             ),
           ),
