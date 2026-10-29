@@ -58,7 +58,7 @@ class ConnectScreen extends StatelessWidget {
                                 : (open ? Colors.green : null),
                           ),
                           title: Text(conn.name),
-                          subtitle: Text(conn.baseUrl),
+                          subtitle: Text(conn.endpointLabel),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -130,16 +130,25 @@ class _ConnectionEditorState extends State<_ConnectionEditor> {
   late final TextEditingController _host;
   late final TextEditingController _port;
   late final TextEditingController _token;
+  late final TextEditingController _service;
+  late final TextEditingController _user;
+  late final TextEditingController _password;
+  ConnectionKind _kind = ConnectionKind.adminHttp;
   bool _useTls = false;
 
   @override
   void initState() {
     super.initState();
     final e = widget.existing;
+    _kind = e?.kind ?? ConnectionKind.adminHttp;
     _name = TextEditingController(text: e?.name ?? 'local');
     _host = TextEditingController(text: e?.host ?? '127.0.0.1');
-    _port = TextEditingController(text: '${e?.port ?? 8088}');
+    _port = TextEditingController(
+        text: '${e?.port ?? (_kind == ConnectionKind.oracleWire ? 1521 : 8088)}');
     _token = TextEditingController(text: e?.token ?? '');
+    _service = TextEditingController(text: e?.service ?? 'DARTDB');
+    _user = TextEditingController(text: e?.user ?? 'admin');
+    _password = TextEditingController(text: e?.password ?? '');
     _useTls = e?.useTls ?? false;
   }
 
@@ -149,44 +158,94 @@ class _ConnectionEditorState extends State<_ConnectionEditor> {
     _host.dispose();
     _port.dispose();
     _token.dispose();
+    _service.dispose();
+    _user.dispose();
+    _password.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final oracle = _kind == ConnectionKind.oracleWire;
     return AlertDialog(
       title: Text(widget.existing == null ? 'New connection' : 'Edit connection'),
       content: SizedBox(
-        width: 380,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: _name,
-              decoration: const InputDecoration(labelText: 'Name'),
-            ),
-            TextField(
-              controller: _host,
-              decoration: const InputDecoration(labelText: 'Host'),
-            ),
-            TextField(
-              controller: _port,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Admin API port'),
-            ),
-            TextField(
-              controller: _token,
-              decoration: const InputDecoration(
-                labelText: 'Bearer token (optional)',
+        width: 400,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SegmentedButton<ConnectionKind>(
+                segments: const [
+                  ButtonSegment(
+                      value: ConnectionKind.adminHttp,
+                      label: Text('Admin API'),
+                      icon: Icon(Icons.http)),
+                  ButtonSegment(
+                      value: ConnectionKind.oracleWire,
+                      label: Text('Oracle wire'),
+                      icon: Icon(Icons.storage)),
+                ],
+                selected: {_kind},
+                onSelectionChanged: (s) {
+                  setState(() {
+                    _kind = s.first;
+                    final p = int.tryParse(_port.text.trim());
+                    if (p == null || p == 1521 || p == 8088) {
+                      _port.text = _kind == ConnectionKind.oracleWire
+                          ? '1521'
+                          : '8088';
+                    }
+                  });
+                },
               ),
-            ),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Use TLS (https)'),
-              value: _useTls,
-              onChanged: (v) => setState(() => _useTls = v),
-            ),
-          ],
+              const SizedBox(height: 12),
+              TextField(
+                controller: _name,
+                decoration: const InputDecoration(labelText: 'Name'),
+              ),
+              TextField(
+                controller: _host,
+                decoration: const InputDecoration(labelText: 'Host'),
+              ),
+              TextField(
+                controller: _port,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                    labelText: oracle ? 'Oracle port' : 'Admin API port'),
+              ),
+              if (!oracle) ...[
+                TextField(
+                  controller: _token,
+                  decoration: const InputDecoration(
+                    labelText: 'Bearer token (optional)',
+                  ),
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Use TLS (https)'),
+                  value: _useTls,
+                  onChanged: (v) => setState(() => _useTls = v),
+                ),
+              ] else ...[
+                TextField(
+                  controller: _service,
+                  decoration: const InputDecoration(labelText: 'Service name'),
+                ),
+                TextField(
+                  controller: _user,
+                  decoration: const InputDecoration(labelText: 'User'),
+                ),
+                TextField(
+                  controller: _password,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Password (not saved to disk)',
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
       actions: [
@@ -203,15 +262,21 @@ class _ConnectionEditorState extends State<_ConnectionEditor> {
   }
 
   void _save() {
-    final port = int.tryParse(_port.text.trim()) ?? 8088;
+    final oracle = _kind == ConnectionKind.oracleWire;
+    final port =
+        int.tryParse(_port.text.trim()) ?? (oracle ? 1521 : 8088);
     final token = _token.text.trim();
     Navigator.of(context).pop(
       ServerConnection(
         name: _name.text.trim().isEmpty ? 'unnamed' : _name.text.trim(),
         host: _host.text.trim().isEmpty ? '127.0.0.1' : _host.text.trim(),
         port: port,
+        kind: _kind,
         token: token.isEmpty ? null : token,
         useTls: _useTls,
+        service: oracle ? _service.text.trim() : null,
+        user: oracle ? _user.text.trim() : null,
+        password: oracle && _password.text.isNotEmpty ? _password.text : null,
       ),
     );
   }

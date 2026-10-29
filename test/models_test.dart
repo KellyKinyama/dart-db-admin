@@ -38,6 +38,41 @@ void main() {
     });
   });
 
+  group('ServerConnection (Oracle wire)', () {
+    test('oracleConnectString and endpointLabel', () {
+      const c = ServerConnection(
+        name: 'ora',
+        host: '127.0.0.1',
+        port: 1521,
+        kind: ConnectionKind.oracleWire,
+        service: 'DARTDB',
+        user: 'admin',
+        password: 'admin',
+      );
+      expect(c.isOracle, isTrue);
+      expect(c.oracleConnectString, '127.0.0.1:1521/DARTDB');
+      expect(c.endpointLabel, '127.0.0.1:1521/DARTDB');
+    });
+
+    test('password is NOT persisted; kind + service survive round-trip', () {
+      const c = ServerConnection(
+        name: 'ora',
+        host: 'h',
+        port: 1521,
+        kind: ConnectionKind.oracleWire,
+        service: 'DARTDB',
+        user: 'admin',
+        password: 'secret',
+      );
+      final decoded =
+          ServerConnection.decodeList(ServerConnection.encodeList([c])).single;
+      expect(decoded.kind, ConnectionKind.oracleWire);
+      expect(decoded.service, 'DARTDB');
+      expect(decoded.user, 'admin');
+      expect(decoded.password, isNull);
+    });
+  });
+
   group('QueryResult', () {
     test('parses a SELECT result', () {
       final r = QueryResult.fromJson({

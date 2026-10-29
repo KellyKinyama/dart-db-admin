@@ -57,6 +57,10 @@ class _HomeShellState extends State<HomeShell> {
       _ => const SizedBox.shrink(),
     };
 
+    // Admin-only screens (everything past SQL) need the HTTP admin API.
+    final effectiveBody =
+        state.isOracleActive && _index >= 2 ? const _AdminOnlyNotice() : body;
+
     return CallbackShortcuts(
       bindings: {
         for (var i = 0; i < _destinations.length; i++)
@@ -114,7 +118,7 @@ class _HomeShellState extends State<HomeShell> {
                     Expanded(
                       child: KeyedSubtree(
                         key: ValueKey(state.activeSessionId ?? 'none'),
-                        child: body,
+                        child: effectiveBody,
                       ),
                 ),
               ],
@@ -229,6 +233,37 @@ class _SessionChip extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AdminOnlyNotice extends StatelessWidget {
+  const _AdminOnlyNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.info_outline,
+                size: 40, color: Theme.of(context).colorScheme.outline),
+            const SizedBox(height: 12),
+            const Text(
+              'This screen uses the HTTP admin API.',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'The active connection is Oracle-wire. Open an Admin API '
+              'connection for vector, schema, status, probe, and events.',
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
       ),
     );

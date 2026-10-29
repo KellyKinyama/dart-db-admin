@@ -40,6 +40,8 @@ dependencies:
   shared_preferences: ^2.5.6
   web_socket_channel: ^3.0.3
   file_selector: ^1.1.0
+  oracledb:
+    path: ../dart-oracledb
 
 dev_dependencies:
   flutter_test:

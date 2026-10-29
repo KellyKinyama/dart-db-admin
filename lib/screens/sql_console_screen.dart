@@ -55,8 +55,7 @@ class _SqlConsoleScreenState extends State<SqlConsoleScreen> {
 
   Future<void> _run() async {
     final state = context.read<AppState>();
-    final client = state.client;
-    if (client == null) {
+    if (!state.isConnected) {
       setState(() => _error = 'Not connected. Open the Connect tab first.');
       return;
     }
@@ -78,7 +77,7 @@ class _SqlConsoleScreenState extends State<SqlConsoleScreen> {
     });
 
     try {
-      final resp = await client.query(sql);
+      final resp = await state.runQuery(sql);
       if (!mounted) return;
       setState(() {
         _response = resp;
