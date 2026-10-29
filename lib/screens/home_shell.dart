@@ -154,7 +154,7 @@ class _ConnectionTabs extends StatelessWidget {
       );
     }
     return Container(
-      height: 44,
+      height: 54,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       alignment: Alignment.centerLeft,
       child: ListView(
@@ -211,6 +211,7 @@ class _SessionChip extends StatelessWidget {
               Icon(Icons.circle, size: 9, color: Colors.green),
               const SizedBox(width: 8),
               Column(
+                mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
