@@ -103,6 +103,22 @@ class AdminApiClient {
     return QueryResult(columns: const [], columnTypes: null, rows: const [], affected: 0);
   }
 
+  /// GET /api/vector/indexes — registered vector indexes.
+  Future<QueryResult> vectorIndexes() async {
+    final json = await _get('/vector/indexes');
+    final idx = json['indexes'];
+    if (idx is Map) return QueryResult.fromJson(idx.cast<String, Object?>());
+    return QueryResult(columns: const [], columnTypes: null, rows: const [], affected: 0);
+  }
+
+  /// GET /api/vector/stats — per-binding vector index statistics.
+  Future<QueryResult> vectorStats() async {
+    final json = await _get('/vector/stats');
+    final stats = json['stats'];
+    if (stats is Map) return QueryResult.fromJson(stats.cast<String, Object?>());
+    return QueryResult(columns: const [], columnTypes: null, rows: const [], affected: 0);
+  }
+
   /// POST /api/query — run one or more SQL statements.
   Future<QueryResponse> query(String sql, {int? maxRows}) async {
     final http.Response res;

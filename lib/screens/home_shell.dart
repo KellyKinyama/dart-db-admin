@@ -8,6 +8,7 @@ import 'events_screen.dart';
 import 'schema_screen.dart';
 import 'sql_console_screen.dart';
 import 'status_screen.dart';
+import 'vector_screen.dart';
 
 /// Top-level shell with a NavigationRail and a connection badge.
 class HomeShell extends StatefulWidget {
@@ -24,6 +25,7 @@ class _HomeShellState extends State<HomeShell> {
     (icon: Icons.cable, label: 'Connect'),
     (icon: Icons.terminal, label: 'SQL'),
     (icon: Icons.schema, label: 'Schema'),
+    (icon: Icons.scatter_plot, label: 'Vector'),
     (icon: Icons.api, label: 'API Probe'),
     (icon: Icons.bolt, label: 'Events'),
     (icon: Icons.monitor_heart, label: 'Status'),
@@ -37,9 +39,10 @@ class _HomeShellState extends State<HomeShell> {
       0 => const ConnectScreen(),
       1 => const SqlConsoleScreen(),
       2 => const SchemaScreen(),
-      3 => const ApiProbeScreen(),
-      4 => const EventsScreen(),
-      5 => const StatusScreen(),
+      3 => const VectorScreen(),
+      4 => const ApiProbeScreen(),
+      5 => const EventsScreen(),
+      6 => const StatusScreen(),
       _ => const SizedBox.shrink(),
     };
 

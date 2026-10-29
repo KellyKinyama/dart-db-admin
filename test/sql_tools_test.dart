@@ -75,4 +75,49 @@ void main() {
       expect(json, contains('"name": "Ann"'));
     });
   });
+
+  group('vector helpers', () {
+    test('isIdentifier', () {
+      expect(isIdentifier('docs'), isTrue);
+      expect(isIdentifier('_x1'), isTrue);
+      expect(isIdentifier('1bad'), isFalse);
+      expect(isIdentifier("a';DROP"), isFalse);
+    });
+
+    test('isVectorLiteral', () {
+      expect(isVectorLiteral('[0.1, 0.4]'), isTrue);
+      expect(isVectorLiteral('[-1, 2, 3.5]'), isTrue);
+      expect(isVectorLiteral('[]'), isFalse);
+      expect(isVectorLiteral('[a, b]'), isFalse);
+      expect(isVectorLiteral('0.1, 0.4'), isFalse);
+    });
+
+    test('buildVecSearchSql builds a valid query', () {
+      final sql = buildVecSearchSql(
+          table: 'docs', column: 'embedding', vector: '[0.1, 0.4]', k: 5);
+      expect(
+        sql,
+        "SELECT rowid, distance FROM vec_search('docs', 'embedding', "
+        "VEC('[0.1, 0.4]'), 5) ORDER BY distance",
+      );
+    });
+
+    test('buildVecSearchSql rejects bad input', () {
+      expect(
+        () => buildVecSearchSql(
+            table: '1bad', column: 'e', vector: '[1]', k: 1),
+        throwsArgumentError,
+      );
+      expect(
+        () => buildVecSearchSql(
+            table: 't', column: 'c', vector: 'nope', k: 1),
+        throwsArgumentError,
+      );
+      expect(
+        () => buildVecSearchSql(
+            table: 't', column: 'c', vector: '[1]', k: 0),
+        throwsArgumentError,
+      );
+    });
+  });
 }

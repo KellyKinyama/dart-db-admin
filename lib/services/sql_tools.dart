@@ -39,3 +39,34 @@ String _csvField(String value) {
   }
   return value;
 }
+
+final _identifier = RegExp(r'^[A-Za-z_][A-Za-z0-9_]*$');
+final _vectorLiteral = RegExp(r'^\[\s*-?\d');
+
+/// True if [s] is a safe SQL identifier (table/column name).
+bool isIdentifier(String s) => _identifier.hasMatch(s);
+
+/// True if [s] looks like a numeric JSON array, e.g. `[0.1, 0.4, -2]`.
+bool isVectorLiteral(String s) {
+  final t = s.trim();
+  if (!_vectorLiteral.hasMatch(t) || !t.endsWith(']')) return false;
+  final inner = t.substring(1, t.length - 1).trim();
+  if (inner.isEmpty) return false;
+  return inner.split(',').every((p) => double.tryParse(p.trim()) != null);
+}
+
+/// Builds a `vec_search` k-NN query. Throws [ArgumentError] on invalid input.
+String buildVecSearchSql({
+  required String table,
+  required String column,
+  required String vector,
+  required int k,
+}) {
+  if (!isIdentifier(table)) throw ArgumentError('invalid table: $table');
+  if (!isIdentifier(column)) throw ArgumentError('invalid column: $column');
+  if (!isVectorLiteral(vector)) throw ArgumentError('invalid vector: $vector');
+  if (k < 1) throw ArgumentError('k must be >= 1');
+  final v = vector.trim();
+  return "SELECT rowid, distance FROM vec_search('$table', '$column', "
+      "VEC('$v'), $k) ORDER BY distance";
+}
